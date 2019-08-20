@@ -1,13 +1,13 @@
 'use strict'
 
-const logger       = use('App/Services/Logger')
-const Config       = use('Config')
-const moment       = use('moment')
-const randomString = use('randomstring')
-const queryString  = use('querystring')
-const crypto       = use('crypto')
-const convert      = use('xml-js')
-const axios        = use('axios')
+const logger       = use('App/Services/Logger') // 打印日志模块,yarn add log4js。log4js 是一个 nodejs 日志管理工具，可以将日志以各种形式输出到各种渠道。
+const Config       = use('Config')  // 导入config，这样就能引用该目录下的模块的数据
+const moment       = use('moment')  // 第三方的日期处理类库,用yarn add moment安装此模块
+const randomString = use('randomstring')  // 第三方模块，用yarn add randomstring,功能是获取获取随机字符串
+const queryString  = use('querystring')   // 依旧用yarn add xxx安装此依赖，作用是将对象拼接成url,比如a,b,c对象拼接成a&b&c
+const crypto       = use('crypto')    // 同上,功能是提供通用的加密和哈希算法。
+const convert      = use('xml-js')    // 同上，作用是能使xml和js相互转换，xml才能向微信api请求下单
+const axios        = use('axios')    // 同上
 
 /**
  * 结账控制器。
@@ -16,7 +16,7 @@ class CheckoutController {
   /**
    * 订单状态查询，
    * 调用微信支付订单查询接口。
-   *
+   * 规定数据类型
    * @param  {Object}  session 需要从会话中获取数据。
    * @return {Object} 订单查询结果。
    */
@@ -50,15 +50,16 @@ class CheckoutController {
       out_trade_no,
       nonce_str
     }
+    // wxPaySign的API做签名验证
     const sign = this.wxPaySign(order, key)
-    const xmlOrder = this.orderToXML(order, sign)
+    const xmlOrder = this.orderToXML(order, sign) // 转换成xml
 
     /**
      * 调用微信支付订单查询接口。
      */
     const wxPayQueryResponse = await axios.post(orderQueryApi, xmlOrder)
     const result = this.xmlToJS(wxPayQueryResponse.data)
-    logger.debug(result)
+    logger.debug(result)  // 用logger进行数据打印
 
     /**
      * 返回订单查询结果。
@@ -103,12 +104,12 @@ class CheckoutController {
     session.put('out_trade_no', out_trade_no)
 
     /** 商品描述 */
-    const body = 'felixlu'
+    const body = '自定义内容'
 
     /** 商品价格 */
     const total_fee = 3
 
-    /** 支付类型 */
+    /** 支付类型,可选Native，MWEB等等 */
     const trade_type = 'MWEB'
 
     /** 用户 IP */
@@ -120,7 +121,7 @@ class CheckoutController {
     /** 通知地址 */
     const notify_url = Config.get('wxpay.notify_url')
 
-    /** 随机字符 */
+    /** 生成32位随机字符 */
     const nonce_str = randomString.generate(32)
 
     /** 统一下单接口 */
@@ -141,8 +142,9 @@ class CheckoutController {
       nonce_str,
       spbill_create_ip
     }
+    // 验证签名
     const sign = this.wxPaySign(order, key)
-    const xmlOrder = this.orderToXML(order, sign)
+    const xmlOrder = this.orderToXML(order, sign) // 转换成xml
 
     /**
      * 调用微信支付统一下单接口。
@@ -238,10 +240,10 @@ class CheckoutController {
       encodeURIComponent: queryString.unescape
     })
 
-    /** 3. 结尾加上密钥。 */
+    /** 3. 结尾加上密钥。将上面的地址末尾拼接上秘钥key */
     const stringOrderWithKey = `${ stringOrder }&key=${ key }`
 
-    /** 4. md5 后全部大写。 */
+    /** 4. md5加密 后全部大写。 */
     const sign = crypto.createHash('md5').update(stringOrderWithKey).digest('hex').toUpperCase()
 
     /**

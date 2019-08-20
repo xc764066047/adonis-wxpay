@@ -1,5 +1,5 @@
 'use strict'
-
+// 此文件是后期添加的，用于使用log4js。log4js 是一个 nodejs 日志管理工具，可以将日志以各种形式输出到各种渠道。
 const log4js = use('log4js')
 
 log4js.configure({

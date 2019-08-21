@@ -42,7 +42,7 @@ class CheckoutController {
     const orderQueryApi = Config.get('wxpay.api.orderquery')
 
     /**
-     * 准备订单查询数据。
+     * 准备订单查询数据。，生成签名
      */
     const order = {
       appid,
@@ -109,13 +109,13 @@ class CheckoutController {
     /** 商品价格 */
     const total_fee = 3
 
-    /** 支付类型,可选Native，MWEB等等 */
+    /** 支付类型,可选Native（扫码支付），MWEB（H5支付）等等 */
     const trade_type = 'MWEB'
 
     /** 用户 IP */
     const spbill_create_ip = request.header('x-real-ip')
 
-    /** 商品 ID */
+    /** 商品 ID，如果是扫码支付，必填此项，H5支付可不填 */
     const product_id = 1
 
     /** 通知地址 */
@@ -149,7 +149,8 @@ class CheckoutController {
     /**
      * 调用微信支付统一下单接口。
      */
-    const wxPayResponse = await axios.post(unifiedOrderApi, xmlOrder)
+    const wxPayResponse = await axios.post(unifiedOrderApi, xmlOrder) // 返回内容
+    // 返回的内容是XML格式，要转成JS格式才能操作DOM
     const data = this.xmlToJS(wxPayResponse.data)
     logger.debug(data)
 
@@ -227,15 +228,17 @@ class CheckoutController {
    * @param  {string} key 密钥。
    * @return {string} 返回签名。
    */
+
+  //  签名验证方法
   wxPaySign (data, key) {
-    /** 1. 排序。 */
+    /** 1. 排序。对order支付数据进行排序 */
     const sortedOrder = Object.keys(data).sort().reduce((accumulator, key) => {
       accumulator[key] = data[key]
       // logger.debug(accumulator)
       return accumulator
     }, {})
 
-    /** 2. 转换成地址查询符。 */
+    /** 2. 排序完成后，转换成地址查询符。 */
     const stringOrder = queryString.stringify(sortedOrder, null, null, {
       encodeURIComponent: queryString.unescape
     })
@@ -243,7 +246,7 @@ class CheckoutController {
     /** 3. 结尾加上密钥。将上面的地址末尾拼接上秘钥key */
     const stringOrderWithKey = `${ stringOrder }&key=${ key }`
 
-    /** 4. md5加密 后全部大写。 */
+    /** 4. md5加密后全部大写。 */
     const sign = crypto.createHash('md5').update(stringOrderWithKey).digest('hex').toUpperCase()
 
     /**
@@ -305,6 +308,7 @@ class CheckoutController {
      * 构建回复数据，
      * 验证之后，要把验证的结果告诉微信支付系统。
      */
+    // 对比自己的签名和微信返回的签名
     const return_code = paymentSign === selfSign ? 'SUCCESS' : 'FAIL'
     logger.debug('回复代码：', return_code)
 
